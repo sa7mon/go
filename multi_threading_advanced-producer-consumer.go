@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"os/signal"
+	//"os/signal"
 	"runtime"
 	"sync"
-	"syscall"
+	//"syscall"
 	"time"
 )
 
@@ -25,10 +25,15 @@ type Consumer struct {
 	in *chan string
 	jobs chan string
 }
-func (c Consumer) Work(wg *sync.WaitGroup) {
+func (c Consumer) Work(wg *sync.WaitGroup, termChan chan error) {
 	defer wg.Done()
 	for job := range c.jobs {
 		fmt.Printf("Starting processing on: %s \n", job)
+		if job == "e" {
+			termChan <- errors.New("found bad item to process")
+			wg.Done()
+			return
+		}
 		d := time.Duration(rand.Intn(10)) * time.Second
 		time.Sleep(d)
 		fmt.Printf("Done processing on: %s \n", job)
@@ -48,7 +53,7 @@ func (c Consumer) Consume(ctx context.Context) {
 type Producer struct {
 	in *chan string
 }
-func (p Producer) Produce(items []string, termChan chan os.Signal) {
+func (p Producer) Produce(items []string, termChan chan error) {
 	for _, item := range items {
 		*p.in <- item
 	}
@@ -64,8 +69,8 @@ func main() {
 	p := Producer{&in}
 	c := Consumer{&in, make(chan string, nConsumers)}
 
-	termChan := make(chan os.Signal)
-	signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
+	termChan := make(chan error)
+	//signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go p.Produce(itemsToProcess, termChan)
 
@@ -75,10 +80,15 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(nConsumers)
 	for i := 0; i < nConsumers; i++ {
-		go c.Work(wg)
+		go c.Work(wg, termChan)
 	}
 
-	<-termChan
+	var errorWhileProcessing error
+	errorWhileProcessing = <- termChan
 	cancelFunc()
 	wg.Wait()
+
+	if errorWhileProcessing != nil {
+		fmt.Println("Caught error while processing: " + errorWhileProcessing.Error())
+	}
 }
