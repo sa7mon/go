@@ -13,6 +13,8 @@ import (
 )
 
 /*
+	Example from: https://medium.com/hdac/producer-consumer-pattern-implementation-with-golang-6ac412cf941c
+
 	Process a list of strings in a configurable number of simultaneous threads.
 	If an error happens during processing, the loop should die as quickly as possible, and we should get the error out.
 
