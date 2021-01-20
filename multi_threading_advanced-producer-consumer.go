@@ -18,7 +18,6 @@ import (
 	Process a list of strings in a configurable number of simultaneous threads.
 	If an error happens during processing, the loop should die as quickly as possible, and we should get the error out.
 
-	PROBLEMS: Never exits at the end
 */
 
 type Consumer struct {
